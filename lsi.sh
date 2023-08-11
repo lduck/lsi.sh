@@ -187,15 +187,26 @@ fi
 # issues.
 if [ $1 = "checkNemail" ]
 then
-    EMAIL="raidadmin@localhost"
+    EMAIL_TO="raidadmin@domain"
+    EMAIL_FROM="megacli_raid@domain"
+    SMTP_RELAY="IP:25"
 
     # Check if raid is in good condition
     STATUS=`$MegaCli -LDInfo -Lall -aALL -NoLog | egrep -i 'fail|degrad|error'`
 
     # On bad raid status send email with basic drive information
     if [ "$STATUS" ]; then
-	$MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | mail -s `hostname`' - RAID Notification' $EMAIL
+ 	$MegaCli -PDlist -aALL -NoLog | egrep 'Slot|state' | awk '/Slot/{if (x)print x;x="";}{x=(!x)?$0:x" -"$0;}END{print x;}' | sed 's/Firmware state://g' | s-nail -S mta=smtp://$SMTP_RELAY -S from=$EMAIL_FROM  -s `hostname`' - RAID Notification' $EMAIL
     fi
+
+    # Check if raid battery health
+    STATUS=`$MegaCli -AdpBbuCmdl -aALL -NoLog | grep 'Battery State: Optimal'`
+    
+    # Send email with battery health when battery state is not Optimal
+    if [ "$STATUS" ]; then
+ 	$MegaCli -AdpBbuCmdl -aALL -NoLog  | s-nail -S mta=smtp://$SMTP_RELAY -S from=$EMAIL_FROM  -s `hostname`' - RAID Battery State is not Optimal' $EMAIL
+    fi
+    
 fi
 
 # Use to print all information about the LSI raid card. Check default options,
